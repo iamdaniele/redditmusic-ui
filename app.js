@@ -211,6 +211,8 @@ var App = (function() {
   var cache = {};
   var lastScrollOffset = 0;
   var BASE_URL = 'http://redditmusic.herokuapp.com';
+  var player = null;
+  var current = null;
   var url = function(endpoint) {
     return BASE_URL + endpoint;
   }
@@ -298,20 +300,55 @@ var App = (function() {
     $('a[data-role="back"]')
       .on('click', request)
       .on('click', function() {
-        console.log('back', lastScrollOffset)
         $('html,body').animate({scrollTop: lastScrollOffset}, 1);
       });
+
+    $('a[data-role="player-control"]').on('click', function() {
+      if (!$(this).attr('data-enabled') || current === null) {
+        return;
+      }
+
+      switch ($(this).attr('data-control')) {
+        case 'prev':
+          current.prev().click();
+          break;
+        case 'play':
+          if ($(this).attr('data-status') === 'pause') {
+            $(this).html('<i class="fa fa-pause"></i>')
+              .attr('data-status', 'play');
+            player.play();
+          } else {
+            $(this).html('<i class="fa fa-play"></i>')
+              .attr('data-status', 'pause');
+              player.pause();
+          }
+          break;
+        case 'next':
+          current.next().click();
+          break;
+      }
+    });
+
     $('div.data').on('click', 'a', function() {
       if ($(this).data('song')) {
-        var song = $(this).data('song');
+        current = $(this);
+        current.attr('data-active', true);
+        var next = current.next();
+        var song = current.data('song');
         $('#player').html(html_entity_decode(song.secure_media.oembed.html.replace('media.html?', 'media.html?autoplay=true&')));
-        var player = new playerjs.Player($('iframe.embedly-embed')[0]);
+        player = new playerjs.Player($('iframe.embedly-embed')[0]);
+        current.data('player', player);
 
         // Wait for the player to be ready before attaching more event.
         player.on('ready', function(){
+          $('a[data-role="player-control"]').attr('data-enabled', true);
+          $('a[data-role="player-control"][data-control="play"]').html('<i class="fa fa-pause"></i>').attr('data-status', 'play');
 
           //When the user hits play, do something.
-          player.on('ended', function(){
+          player.on('ended', function() {
+            if (next) {
+              next.click();
+            }
             console.log('ended');
           });
 
